@@ -1,116 +1,94 @@
 #include "raylib.h"
-#include <stdlib.h>
-#include <time.h>
+#include <stdbool.h>
 
-#define FILAS 50
-#define COLUMNAS 50
-#define CELL_SIZE 10
+#define MAX_FRAME_SPEED     15
+#define MIN_FRAME_SPEED      1
 
-#define DEAD 0
-#define ALIVE 1
-
-int contarVecinos(int grid[FILAS][COLUMNAS], int x, int y) {
-    int conteo = 0;
-    for (int i = -1; i <= 1; i++) {
-        for (int j = -1; j <= 1; j++) {
-            if (i == 0 && j == 0) continue;
-            int nx = x + i;
-            int ny = y + j;
-            if (nx >= 0 && nx < FILAS && ny >= 0 && ny < COLUMNAS) {
-                conteo += grid[nx][ny];
-            }
-        }
-    }
-    return conteo;
-}
-
-void nextGeneration(int grid[FILAS][COLUMNAS]) {
-    int nuevo[FILAS][COLUMNAS];
-
-    for (int i = 0; i < FILAS; i++) {
-        for (int j = 0; j < COLUMNAS; j++) {
-            int vecinos = contarVecinos(grid, i, j);
-
-            if (grid[i][j] == ALIVE) {
-                nuevo[i][j] = (vecinos == 2 || vecinos == 3) ? ALIVE : DEAD;
-            } else {
-                nuevo[i][j] = (vecinos == 3) ? ALIVE : DEAD;
-            }
-        }
-    }
-
-    for (int i = 0; i < FILAS; i++)
-        for (int j = 0; j < COLUMNAS; j++)
-            grid[i][j] = nuevo[i][j];
-}
-
-void randomizarGrid(int grid[FILAS][COLUMNAS]) {
-    for (int i = 0; i < FILAS; i++) {
-        for (int j = 0; j < COLUMNAS; j++) {
-            grid[i][j] = rand() % 2;
-        }
-    }
-}
+typedef struct Player {
+    Rectangle rect;
+    Vector2 velocity;
+    bool onGround;
+} Player;
 
 int main(void) {
-    const int screenWidth = COLUMNAS * CELL_SIZE;
-    const int screenHeight = FILAS * CELL_SIZE;
+    const int screenWidth = 800;
+    const int screenHeight = 450;
 
-    InitWindow(screenWidth, screenHeight, "Juego de la Vida - Raylib");
+    InitWindow(screenWidth, screenHeight, "Plataformero con Raylib");
     SetTargetFPS(60);
 
-    srand(time(NULL));
+    // Jugador
+    InitWindow(screenWidth,screenHeight,"raylib [textures] example - sprite animation");
+    Texture2D scarfy = LoadTexture("cat_walk_1.png");}
+    Vector2 position = { 350.0f, 280.0f}
+    }
 
-    int grid[FILAS][COLUMNAS];
-    randomizarGrid(grid);
+    // Plataforma principal (suelo)
+    Rectangle floor = {0, 400, 800, 50};
 
-    float timer = 0;
-    float delay = 0.2f; // Tiempo entre generaciones
-    bool paused = false;
-    int generation = 0;
+    // Otra plataforma
+    Rectangle platform = {300, 300, 150, 20};
+
+    const float gravity = 600.0f; // gravedad en pixels/segundo^2
+    const float speed = 200.0f;
+    const float jumpForce = -300.0f;
 
     while (!WindowShouldClose()) {
-        // Controles
-        if (IsKeyPressed(KEY_R)) {
-            randomizarGrid(grid);
-            generation = 0;
-        }
-        if (IsKeyPressed(KEY_SPACE)) {
-            paused = !paused;
+        float dt = GetFrameTime();
+
+        // --------------------------
+        //   INPUT DEL JUGADOR
+        // --------------------------
+        if (IsKeyDown(KEY_RIGHT)) player.velocity.x = speed;
+        else if (IsKeyDown(KEY_LEFT)) player.velocity.x = -speed;
+        else player.velocity.x = 0;
+
+        if (IsKeyPressed(KEY_SPACE) && player.onGround) {
+            player.velocity.y = jumpForce;
+            player.onGround = false;
         }
 
-        // Avanzar generaciones automáticamente
-        if (!paused) {
-            timer += GetFrameTime();
-            if (timer >= delay) {
-                nextGeneration(grid);
-                generation++;
-                timer = 0;
+        // --------------------------
+        //        FÍSICA
+        // --------------------------
+        player.velocity.y += gravity * dt;
+        player.rect.x += player.velocity.x * dt;
+        player.rect.y += player.velocity.y * dt;
+
+        // --------------------------
+        //     COLISIONES
+        // --------------------------
+        player.onGround = false;
+
+        // Suelo
+        if (CheckCollisionRecs(player.rect, floor)) {
+            player.rect.y = floor.y - player.rect.height;
+            player.velocity.y = 0;
+            player.onGround = true;
+        }
+
+        // Plataforma flotante
+        if (CheckCollisionRecs(player.rect, platform)) {
+            if (player.velocity.y > 0) { // cae desde arriba
+                player.rect.y = platform.y - player.rect.height;
+                player.velocity.y = 0;
+                player.onGround = true;
             }
         }
 
-        // Dibujar
+        // --------------------------
+        //     DIBUJO
+        // --------------------------
         BeginDrawing();
-        ClearBackground(BLACK);
+        ClearBackground(RAYWHITE);
 
-        for (int i = 0; i < FILAS; i++) {
-            for (int j = 0; j < COLUMNAS; j++) {
-                Color color = (grid[i][j] == ALIVE) ? RAYWHITE : BLACK;
-                DrawRectangle(j * CELL_SIZE, i * CELL_SIZE, CELL_SIZE, CELL_SIZE, color);
-            }
-        }
+        DrawRectangleRec(floor, DARKGRAY);
+        DrawRectangleRec(platform, GRAY);
 
-        // Dibujar cuadrícula opcional
-        for (int i = 0; i <= FILAS; i++) {
-            DrawLine(0, i * CELL_SIZE, screenWidth, i * CELL_SIZE, DARKGRAY);
-        }
-        for (int j = 0; j <= COLUMNAS; j++) {
-            DrawLine(j * CELL_SIZE, 0, j * CELL_SIZE, screenHeight, DARKGRAY);
-        }
+        DrawRectangleRec(player.rect, BLUE);
 
-        DrawText(TextFormat("Generacion: %d", generation), 10, 10, 20, GREEN);
-        DrawText(paused ? "Pausado (espacio para continuar)" : "Corriendo (espacio para pausar)", 10, 35, 20, YELLOW);
-        DrawText("R para reiniciar", 10, 60, 20, LIGHTGRAY);
+        DrawText("Plataformero en C + Raylib", 10, 10, 20, BLACK);
+        DrawText("Flechas para moverte, SPACE para saltar", 10, 35, 18, DARKBLUE);
 
         EndDrawing();
     }
