@@ -24,7 +24,7 @@ int main(void) {
     Rectangle frameRec = { 0.0f, 0.0f, (float)texture.width/3, (float)texture.height };
     int currentFrame = 0;
     int framesCounter = 0;
-    int framesSpeed = 2;
+    int framesSpeed = 6;
 
     // --------------------------------------------------------------------
     //                        DATOS DEL JUGADOR
@@ -75,9 +75,17 @@ int main(void) {
         if (IsKeyDown(KEY_D)) player.velocity.x = speed;
         if (IsKeyDown(KEY_A)) player.velocity.x = -speed;
 
-        if (IsKeyPressed(KEY_SPACE) && player.onGround) {
+        if (IsKeyDown(KEY_SPACE) /*&& player.onGround*/) {{
             player.velocity.y = jumpForce;
-            player.onGround = false;
+            player.onGround = false;}
+
+            if (IsKeyDown(KEY_SPACE) && player.velocity.y < 0 ) {
+                player.velocity.y += gravity * dt * 0.3f; // gravedad reducida (salto más alto) 
+            }
+
+            if (IsKeyReleased(KEY_SPACE) && player.velocity.y < 0) {
+                player.velocity.y += gravity* dt * 1.5f;  // caída rápida
+            }
         }
 
         // ---------------------------------------------------------
