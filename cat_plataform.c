@@ -16,6 +16,13 @@ typedef struct Player {
     Vector2 velocity;
 } Player;
 
+// ----------- PLATFORM -----------
+// <<< MOD: ahora tienen velocidad horizontal
+typedef struct {
+    Rectangle rect;
+    float speed;
+} Platform;
+
 int main(void) {
     const int screenWidth = 800;
     const int screenHeight = 450;
@@ -26,8 +33,12 @@ int main(void) {
     srand(time(NULL));
 
     // ---------------- PLAYER ----------------
-    Texture2D texture = LoadTexture("Cat_player_images/Cat_sheets/Cat_walk_1.png");
-    Rectangle frameRec = {0.0f, 0.0f, (float)texture.width/3, (float)texture.height};
+    //png idle
+    Texture2D texture_idle = LoadTexture("Cat_player_images/Cat_sheets/Cat_idle_1.png");
+    //png walk
+    Texture2D texture_walk_left = LoadTexture("Cat_player_images/Cat_sheets/Cat_walk_1.png");
+    Texture2D texture_walk = LoadTexture("Cat_player_images/Cat_sheets/cat_run_left_1.png");
+    Rectangle frameRec = {0.0f, 0.0f, (float)texture_walk.width/3, (float)texture_walk.height};
     int currentFrame = 0;
     int framesCounter = 0;
     int framesSpeed = 6;
@@ -118,9 +129,22 @@ int main(void) {
         DrawRectangleRec(floor, DARKGRAY);
         for (int i = 0; i < MAX_PLATFORMS; i++)
             DrawRectangleRec(platforms[i], GRAY);
-
-        DrawTextureRec(texture, frameRec, (Vector2){player.rect.x, player.rect.y}, WHITE);
+        
+        if (player.velocity.x == 0 <= 200){
+            DrawTextureRec(texture_walk_left, frameRec, (Vector2){player.rect.x, player.rect.y}, WHITE);
         EndMode2D();
+        }
+
+        if (player.velocity.x == 0) {
+        DrawTextureRec(texture_idle, frameRec, (Vector2){player.rect.x, player.rect.y}, WHITE);
+        EndMode2D();
+        }
+        else 
+        {
+        DrawTextureRec(texture_walk, frameRec, (Vector2){player.rect.x, player.rect.y}, WHITE);
+        EndMode2D();
+        }
+        
 
         DrawText("Saltos infinitos + plataformas random", 10, 10, 20, BLACK);
         DrawText("A/D para moverte, SPACE para saltar", 10, 35, 18, DARKBLUE);
@@ -128,7 +152,7 @@ int main(void) {
         EndDrawing();
     }
 
-    UnloadTexture(texture);
+    UnloadTexture(texture_idle);
     CloseWindow();
     return 0;
 }
