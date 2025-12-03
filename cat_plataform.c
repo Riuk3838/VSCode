@@ -14,10 +14,10 @@ float lerp(float a, float b, float t) {
 typedef struct Player {
     Rectangle rect;
     Vector2 velocity;
+    int direction; // 1 right 0 left
 } Player;
 
 // ----------- PLATFORM -----------
-// <<< MOD: ahora tienen velocidad horizontal
 typedef struct {
     Rectangle rect;
     float speed;
@@ -33,11 +33,13 @@ int main(void) {
     srand(time(NULL));
 
     // ---------------- PLAYER ----------------
-    //png idle
     Texture2D texture_idle = LoadTexture("Cat_player_images/Cat_sheets/Cat_idle_1.png");
-    //png walk
     Texture2D texture_walk_left = LoadTexture("Cat_player_images/Cat_sheets/Cat_walk_1.png");
     Texture2D texture_walk = LoadTexture("Cat_player_images/Cat_sheets/cat_run_left_1.png");
+    Texture2D texture_jump = LoadTexture("Cat_player_images/gif/CAT_jump_1.gif");
+    Texture2D texture_jump_left = LoadTexture("Cat_player_images/gif/CAT_jump_2.png");
+
+
     Rectangle frameRec = {0.0f, 0.0f, (float)texture_walk.width/3, (float)texture_walk.height};
     int currentFrame = 0;
     int framesCounter = 0;
@@ -46,6 +48,14 @@ int main(void) {
     Player player = {0};
     player.rect = (Rectangle){350, 280, frameRec.width, frameRec.height};
     player.velocity = (Vector2){0, 0};
+
+    // ---- SCORE ----
+    float highestY = player.rect.y;
+    int score = 0;
+
+    // ---- SALTOS LIMITADOS ----
+    int maxJumps = 5;
+    int jumpsLeft = maxJumps;
 
     // ---------------- PLATFORMS ----------------
     Rectangle floor = {0, 400, 800, 50};
@@ -89,10 +99,16 @@ int main(void) {
         else if (IsKeyDown(KEY_A)) player.velocity.x = -speed;
         else player.velocity.x = 0;
 
-        if (IsKeyPressed(KEY_SPACE)) player.velocity.y = jumpForce;
+        // ---- SALTO LIMITADO  ----
+        if (IsKeyPressed(KEY_SPACE) && jumpsLeft > 0) {
+            player.velocity.y = jumpForce;
+            jumpsLeft--;
+        }
 
-        if (IsKeyDown(KEY_SPACE) && player.velocity.y < 0)
+        if (IsKeyDown(KEY_SPACE) && player.velocity.y < 0){
+
             player.velocity.y += gravity * dt * 0.3f;
+        }
 
         if (IsKeyReleased(KEY_SPACE) && player.velocity.y < 0)
             player.velocity.y += gravity * dt * 1.5f;
@@ -102,16 +118,35 @@ int main(void) {
         player.rect.x += player.velocity.x * dt;
         player.rect.y += player.velocity.y * dt;
 
-        // ---- Colisiones ----
+        // ---- ACTUALIZAR SCORE ----
+        if (player.rect.y < highestY) {
+            highestY = player.rect.y;
+            score = (int)((400 - highestY) * 0.1f);
+        }
+
+        // ---- Colisión con el piso ----
         if (CheckCollisionRecs(player.rect, floor)) {
             player.rect.y = floor.y - player.rect.height;
             player.velocity.y = 0;
+
+            jumpsLeft = maxJumps;  // RECARGA SALTOS
         }
 
+        // ---- Colisión con plataformas ----
         for (int i = 0; i < MAX_PLATFORMS; i++) {
             if (CheckCollisionRecs(player.rect, platforms[i]) && player.velocity.y > 0) {
                 player.rect.y = platforms[i].y - player.rect.height;
                 player.velocity.y = 0;
+
+                jumpsLeft = maxJumps;  // RECARGA SALTOS
+            }
+        }
+
+        // ---- Reciclar plataformas ----
+        for (int i = 0; i < MAX_PLATFORMS; i++) {
+            if (platforms[i].y > player.rect.y + 300) {
+                platforms[i].y = player.rect.y - (float)(50 + rand() % 150);
+                platforms[i].x = (float)(rand() % 700);
             }
         }
 
@@ -127,27 +162,42 @@ int main(void) {
 
         BeginMode2D(camera);
         DrawRectangleRec(floor, DARKGRAY);
+
         for (int i = 0; i < MAX_PLATFORMS; i++)
             DrawRectangleRec(platforms[i], GRAY);
         
-        if (player.velocity.x == 0 <= 200){
-            DrawTextureRec(texture_walk_left, frameRec, (Vector2){player.rect.x, player.rect.y}, WHITE);
-        EndMode2D();
-        }
-
-        if (player.velocity.x == 0) {
-        DrawTextureRec(texture_idle, frameRec, (Vector2){player.rect.x, player.rect.y}, WHITE);
-        EndMode2D();
-        }
-        else 
-        {
-        DrawTextureRec(texture_walk, frameRec, (Vector2){player.rect.x, player.rect.y}, WHITE);
-        EndMode2D();
-        }
+        if(player.velocity.y == 0){
         
+
+            if (player.velocity.x > 0){
+                DrawTextureRec(texture_walk_left, frameRec, (Vector2){player.rect.x, player.rect.y}, WHITE);
+            } else if (player.velocity.x == 0) {
+                DrawTextureRec(texture_idle, frameRec, (Vector2){player.rect.x, player.rect.y}, WHITE);
+                
+            } else {
+                DrawTextureRec(texture_walk, frameRec, (Vector2){player.rect.x, player.rect.y}, WHITE);
+                
+            }
+        }
+        else
+        {
+            if (player.velocity.x > 0){
+                DrawTextureRec(texture_jump, frameRec, (Vector2){player.rect.x, player.rect.y}, WHITE);
+            }
+            else{
+                DrawTextureRec(texture_jump_left, frameRec, (Vector2){player.rect.x, player.rect.y}, WHITE);
+            }
+        }
+        EndMode2D();
 
         DrawText("Saltos infinitos + plataformas random", 10, 10, 20, BLACK);
         DrawText("A/D para moverte, SPACE para saltar", 10, 35, 18, DARKBLUE);
+
+        // ---- SCORE ----
+        DrawText(TextFormat("Puntuación: %d", score), 10, 70, 22, RED);
+
+        // ---- MOSTRAR SALTOS RESTANTES  ----
+        DrawText(TextFormat("Saltos restantes: %d", jumpsLeft), 10, 100, 22, DARKGREEN);
 
         EndDrawing();
     }
